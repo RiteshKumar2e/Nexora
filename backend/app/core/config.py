@@ -45,11 +45,17 @@ class Settings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
 
     # --- LLM backend selection ---
-    # "nano"   -> run OUR OWN from-scratch model (nano-llm) in-process. No
-    #             external server, no third-party API.
+    # "nano"   -> run OUR OWN from-scratch model (nano-llm) in-process.
     # "ollama" -> use a local Ollama / OpenAI-compatible server instead.
     # "groq"   -> use the hosted Groq API with multi-key + multi-model fallback.
+    # "hybrid" -> try the native model first; if its answer fails a quality gate,
+    #             auto-switch to Groq so the user always gets a proper answer.
     llm_backend: str = "nano"
+
+    # --- Hybrid quality gate (only used when llm_backend=hybrid) ---
+    hybrid_min_chars: int = 24
+    hybrid_min_words: int = 5
+    hybrid_min_unique_ratio: float = 0.5
 
     # --- Groq (hosted API; only used when llm_backend=groq) ---
     # Multiple keys: when one is rate-limited/exhausted, the client rotates to the

@@ -27,6 +27,10 @@ def get_llm_client() -> LLMClient:
         from app.llm.groq_client import GroqClient
 
         return GroqClient()
+    if backend in ("hybrid", "nano+groq", "auto"):
+        from app.llm.hybrid_client import HybridClient
+
+        return HybridClient()
     # Imported lazily so the app doesn't require torch unless this backend runs.
     from app.llm.nano_client import NanoLMClient
 
