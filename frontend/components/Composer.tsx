@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent } from "react";
+import { ArrowUp, Square } from "lucide-react";
 
 export default function Composer({
   value,
@@ -48,7 +49,7 @@ export default function Composer({
         />
         {busy ? (
           <button className="send-btn stop" onClick={onStop} title="Stop">
-            ■
+            <Square size={16} fill="currentColor" />
           </button>
         ) : (
           <button
@@ -57,7 +58,7 @@ export default function Composer({
             disabled={!value.trim()}
             title="Send"
           >
-            ↑
+            <ArrowUp size={19} />
           </button>
         )}
       </div>

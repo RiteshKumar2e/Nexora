@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "katex/dist/katex.min.css";
 import "highlight.js/styles/github.css";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "Nexora — AI Assistant",
@@ -14,9 +15,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // suppressHydrationWarning: next-themes sets data-theme on <html> at runtime.
   return (
-    <html lang="en" data-theme="light">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

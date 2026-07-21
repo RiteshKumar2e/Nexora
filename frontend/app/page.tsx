@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
 import MessageBubble from "@/components/MessageBubble";
 import Composer from "@/components/Composer";
 import { api, streamChat } from "@/lib/api";
@@ -13,7 +15,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -40,7 +41,6 @@ export default function ChatPage() {
   async function selectConversation(id: string) {
     if (busy) return;
     setActiveId(id);
-    setError(null);
     const detail = await api.getConversation(id);
     setMessages(detail.messages);
   }
@@ -49,7 +49,6 @@ export default function ChatPage() {
     if (busy) return;
     setActiveId(null);
     setMessages([]);
-    setError(null);
   }
 
   async function deleteConversation(id: string) {
@@ -62,7 +61,6 @@ export default function ChatPage() {
     const text = input.trim();
     if (!text || busy) return;
 
-    setError(null);
     setInput("");
     setBusy(true);
 
@@ -96,7 +94,14 @@ export default function ChatPage() {
           refreshConversations();
         },
         onError: (msg) => {
-          setError(msg);
+          toast.error(msg);
+          setMessages((m) => {
+            // Drop the empty assistant placeholder if nothing streamed.
+            const copy = [...m];
+            const last = copy[copy.length - 1];
+            if (last?.role === "assistant" && !last.content) copy.pop();
+            return copy;
+          });
           setBusy(false);
           abortRef.current = null;
         },
@@ -111,6 +116,7 @@ export default function ChatPage() {
   }
 
   const empty = messages.length === 0;
+  const activeTitle = conversations.find((c) => c.id === activeId)?.title;
 
   return (
     <div className="app-shell">
@@ -123,6 +129,7 @@ export default function ChatPage() {
       />
 
       <main className="chat-main">
+        <Header title={activeTitle} />
         <div className="chat-scroll" ref={scrollRef}>
           {empty ? (
             <div className="welcome">
@@ -160,8 +167,6 @@ export default function ChatPage() {
               ))}
             </div>
           )}
-
-          {error && <div className="error-banner">⚠ {error}</div>}
         </div>
 
         <Composer

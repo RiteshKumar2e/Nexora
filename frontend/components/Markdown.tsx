@@ -7,6 +7,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import Mermaid from "./Mermaid";
+import CodeBlock from "./CodeBlock";
 
 /** Recursively pull plain text out of React children (for mermaid source). */
 function textOf(node: ReactNode): string {
@@ -36,19 +37,31 @@ function normalizeMath(input: string): string {
     .join("");
 }
 
-function CodeBlock({ className, children }: any) {
-  const lang = /language-(\w+)/.exec(className || "")?.[1];
-
-  // In react-markdown v9 the `inline` prop is gone: block code carries a
-  // `language-*` class (rehype-highlight also adds one when auto-detecting),
-  // while inline code has no class — that distinction drives rendering.
-  if (lang === "mermaid") {
-    return <Mermaid chart={textOf(children).trim()} />;
-  }
+/** Inline code vs block code. In react-markdown v9 there is no `inline` prop;
+ *  block code carries a `language-*` class, inline code does not. Block code is
+ *  rendered by the `pre` override below, so here we only special-case inline. */
+function Code({ className, children }: any) {
   if (!className) {
     return <code className="inline-code">{children}</code>;
   }
   return <code className={className}>{children}</code>;
+}
+
+/** The `<pre>` wrapper: route mermaid to the diagram renderer, everything else
+ *  to CodeBlock (language label + copy button around the highlighted code). */
+function Pre({ children }: any) {
+  const codeEl = Array.isArray(children) ? children[0] : children;
+  const className: string = codeEl?.props?.className || "";
+  const lang = /language-(\w+)/.exec(className)?.[1];
+  const raw = textOf(codeEl?.props?.children);
+  if (lang === "mermaid") {
+    return <Mermaid chart={raw.trim()} />;
+  }
+  return (
+    <CodeBlock lang={lang} code={raw}>
+      {children}
+    </CodeBlock>
+  );
 }
 
 function MarkdownBase({ content }: { content: string }) {
@@ -57,7 +70,7 @@ function MarkdownBase({ content }: { content: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]]}
-        components={{ code: CodeBlock }}
+        components={{ code: Code, pre: Pre }}
       >
         {normalizeMath(content)}
       </ReactMarkdown>

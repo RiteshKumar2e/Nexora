@@ -96,7 +96,8 @@ body {
   padding: 2px 4px;
 }
 .brand-mark {
-  font-size: 18px;
+  display: grid;
+  place-items: center;
   color: var(--accent);
 }
 .brand-name {
@@ -106,6 +107,10 @@ body {
   color: var(--text);
 }
 .new-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   padding: 10px 14px;
   border-radius: 10px;
@@ -140,8 +145,7 @@ body {
 .convo-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 9px;
   padding: 9px 11px;
   border-radius: 9px;
   cursor: pointer;
@@ -156,7 +160,12 @@ body {
   background: var(--accent-soft);
   color: var(--accent-press);
 }
+.convo-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
 .convo-title {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -168,9 +177,12 @@ body {
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  transition: color 0.12s ease;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color 0.12s ease, background 0.12s ease;
 }
 .convo-item:hover .convo-del {
   opacity: 1;
@@ -202,6 +214,58 @@ body {
   min-width: 0;
   height: 100vh;
   background: var(--bg);
+}
+
+/* ── Top bar ────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar-spark {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.icon-btn:hover {
+  background: var(--bg-elev);
+  border-color: var(--border);
+  color: var(--text);
 }
 .chat-scroll {
   flex: 1;
@@ -252,11 +316,42 @@ body {
 .msg-assistant .msg-avatar {
   background: linear-gradient(135deg, var(--accent) 0%, #7d79e0 100%);
 }
+.msg-col {
+  min-width: 0;
+}
 .msg-body {
   min-width: 0;
   padding-top: 3px;
   line-height: 1.72;
   font-size: 15.5px;
+  color: var(--text);
+}
+/* Hover actions under an assistant message (copy, etc.). */
+.msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.msg-row:hover .msg-actions {
+  opacity: 1;
+}
+.msg-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.msg-action:hover {
+  background: var(--bg-elev);
   color: var(--text);
 }
 /* ChatGPT-style soft bubble for the user's own turns. */
@@ -359,7 +454,86 @@ body {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   background: none;
   padding: 0;
-  color: #24292f;
+  color: inherit;
+}
+
+/* Code block: language label + copy button header, then the highlighted code. */
+.code-block {
+  margin: 0.9em 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--code-bg);
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 6px 14px;
+  background: color-mix(in srgb, var(--code-bg) 82%, var(--text) 5%);
+  border-bottom: 1px solid var(--border-soft);
+}
+.code-lang {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+}
+.code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 6px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.code-copy:hover {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+/* The <pre> inside a code-block wrapper is chrome-less (the wrapper frames it). */
+.markdown .code-block pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* The highlight.js theme we import is light-only; supply dark-mode token colors
+   (github-dark palette) so code stays legible when the theme toggle is dark. */
+:root[data-theme="dark"] .markdown pre code,
+:root[data-theme="dark"] .hljs {
+  color: #c9d1d9;
+}
+:root[data-theme="dark"] .hljs-comment,
+:root[data-theme="dark"] .hljs-quote {
+  color: #8b949e;
+}
+:root[data-theme="dark"] .hljs-keyword,
+:root[data-theme="dark"] .hljs-built_in,
+:root[data-theme="dark"] .hljs-type,
+:root[data-theme="dark"] .hljs-tag {
+  color: #ff7b72;
+}
+:root[data-theme="dark"] .hljs-string,
+:root[data-theme="dark"] .hljs-attr,
+:root[data-theme="dark"] .hljs-symbol {
+  color: #a5d6ff;
+}
+:root[data-theme="dark"] .hljs-number,
+:root[data-theme="dark"] .hljs-literal {
+  color: #79c0ff;
+}
+:root[data-theme="dark"] .hljs-title,
+:root[data-theme="dark"] .hljs-function,
+:root[data-theme="dark"] .hljs-name,
+:root[data-theme="dark"] .hljs-section {
+  color: #d2a8ff;
 }
 .markdown table {
   border-collapse: collapse;
