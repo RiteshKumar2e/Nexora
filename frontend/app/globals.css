@@ -538,7 +538,38 @@ body {
   transition: all var(--duration-fast) var(--ease);
 }
 .msg-action:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.msg-action:disabled { opacity: 0.45; cursor: not-allowed; }
 .msg-action.active { color: var(--primary); }
+
+/* Correction box (shown after a 👎 to capture a preferred answer for training) */
+.correction-box {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 640px;
+}
+.correction-input {
+  width: 100%;
+  min-height: 68px;
+  resize: vertical;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.correction-input:focus { border-color: var(--primary); }
+.correction-actions { display: flex; gap: var(--space-2); }
+.correction-actions .msg-action {
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
 
 /* Cursor blink during streaming */
 .cursor-blink {

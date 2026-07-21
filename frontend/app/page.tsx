@@ -195,6 +195,39 @@ export default function ChatPage() {
     setBusy(false);
   }
 
+  // Persist RLHF feedback: the assistant message at `index` paired with the
+  // preceding user turn, plus an optional user-written correction.
+  async function submitFeedback(
+    index: number,
+    rating: "up" | "down",
+    correction?: string,
+  ) {
+    const assistant = messages[index];
+    let userMsg = "";
+    for (let j = index - 1; j >= 0; j--) {
+      if (messages[j].role === "user") {
+        userMsg = messages[j].content;
+        break;
+      }
+    }
+    if (!assistant || !userMsg) return;
+    try {
+      await api.sendFeedback({
+        user_message: userMsg,
+        assistant_response: assistant.content,
+        rating,
+        correction,
+        conversation_id: activeId ?? undefined,
+        model: assistant.model ?? undefined,
+      });
+      toast.success(
+        correction ? "Correction saved for training" : "Thanks for the feedback",
+      );
+    } catch {
+      toast.error("Couldn't save feedback");
+    }
+  }
+
   function regenerate() {
     if (busy || messages.length < 2) return;
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
@@ -309,6 +342,11 @@ export default function ChatPage() {
                     }
                     onEdit={
                       m.role === "user" ? (text) => editAndResend(i, text) : undefined
+                    }
+                    onFeedback={
+                      m.role === "assistant"
+                        ? (rating, correction) => submitFeedback(i, rating, correction)
+                        : undefined
                     }
                   />
                 ))}

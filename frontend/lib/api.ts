@@ -66,6 +66,21 @@ export const api = {
       headers: getAuthHeaders(),
       body: JSON.stringify({ pinned }),
     }).then(json<Conversation>),
+
+  // RLHF feedback: rating (and optional correction) for one assistant turn.
+  sendFeedback: (body: {
+    user_message: string;
+    assistant_response: string;
+    rating: "up" | "down";
+    correction?: string;
+    conversation_id?: string;
+    model?: string;
+  }) =>
+    fetch(`${API_URL}/api/feedback`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    }).then(json<{ ok: boolean; id: string }>),
 };
 
 export interface StreamHandlers {

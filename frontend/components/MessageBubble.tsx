@@ -11,18 +11,43 @@ export default function MessageBubble({
   streaming,
   onRegenerate,
   onEdit,
+  onFeedback,
 }: {
   message: Message;
   index: number;
   streaming?: boolean;
   onRegenerate?: () => void;
   onEdit?: (newContent: string) => void;
+  onFeedback?: (rating: "up" | "down", correction?: string) => void;
 }) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [correction, setCorrection] = useState("");
+
+  function rateUp() {
+    const next = feedback === "up" ? null : "up";
+    setFeedback(next);
+    setShowCorrection(false);
+    if (next === "up") onFeedback?.("up");
+  }
+
+  function rateDown() {
+    setFeedback("down");
+    setShowCorrection(true);
+    onFeedback?.("down");
+  }
+
+  function submitCorrection() {
+    if (correction.trim()) {
+      onFeedback?.("down", correction.trim());
+      setShowCorrection(false);
+      setCorrection("");
+    }
+  }
 
   async function copy() {
     try {
@@ -107,17 +132,17 @@ export default function MessageBubble({
               <>
                 <button
                   className="msg-action"
-                  onClick={() => setFeedback(feedback === "up" ? null : "up")}
+                  onClick={rateUp}
                   style={feedback === "up" ? { color: "var(--success)" } : {}}
-                  title="Helpful"
+                  title="Helpful — save as a good example"
                 >
                   <ThumbsUp size={14} />
                 </button>
                 <button
                   className="msg-action"
-                  onClick={() => setFeedback(feedback === "down" ? null : "down")}
+                  onClick={rateDown}
                   style={feedback === "down" ? { color: "var(--danger)" } : {}}
-                  title="Unhelpful"
+                  title="Unhelpful — optionally suggest a better answer"
                 >
                   <ThumbsDown size={14} />
                 </button>
@@ -129,6 +154,25 @@ export default function MessageBubble({
                 )}
               </>
             )}
+          </div>
+        )}
+
+        {!isUser && showCorrection && (
+          <div className="correction-box">
+            <textarea
+              className="correction-input"
+              placeholder="Optional: write a better answer. It's saved as the preferred target for training."
+              value={correction}
+              onChange={(e) => setCorrection(e.target.value)}
+            />
+            <div className="correction-actions">
+              <button className="msg-action" onClick={submitCorrection} disabled={!correction.trim()}>
+                Submit correction
+              </button>
+              <button className="msg-action" onClick={() => setShowCorrection(false)}>
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
       </div>

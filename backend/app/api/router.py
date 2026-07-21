@@ -5,6 +5,7 @@ from fastapi import APIRouter
 
 from app.api.routes import chat, conversations, health, projects, files, artifacts, tools, memories, training, evaluation
 from app.auth.routes import router as auth_router
+from app.feedback.routes import router as feedback_router
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -16,5 +17,6 @@ api_router.include_router(tools.router)
 api_router.include_router(memories.router)
 api_router.include_router(training.router)
 api_router.include_router(evaluation.router)
+api_router.include_router(feedback_router)
 api_router.include_router(conversations.router)
 api_router.include_router(chat.router)
