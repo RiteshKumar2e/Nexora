@@ -1,18 +1,12 @@
-"""In-process LLM backend powered by OUR OWN from-scratch model (nano-llm).
+"""In-process LLM backend powered by Nexora's own from-scratch model.
 
-No external server, no third-party API — Nexora loads the model weights we
-trained ourselves (the nano-llm project) and generates tokens directly in
-Python via nano-llm's KV-cached inference engine. This satisfies the same
-`LLMClient` interface as the Ollama backend, so routes/services are unchanged.
-
-Heavy imports (torch + the nano-llm packages) are done lazily inside `_load`, so
-importing this module never requires torch to be installed until the model is
-actually used.
+No external server, no third-party API — loads the Transformer model we
+trained ourselves and generates tokens directly with KV-cached inference.
+Satisfies the same LLMClient interface as Ollama/Groq.
 """
 from __future__ import annotations
 
 import asyncio
-import sys
 from collections.abc import AsyncIterator, Sequence
 from pathlib import Path
 
@@ -23,74 +17,81 @@ from app.llm.ollama_client import LLMBackendError
 
 log = get_logger("llm.nano")
 
-_STOP = object()  # sentinel marking the end of the sync generator
+_STOP = object()
 
 
 class NanoLMClient:
-    """Runs the self-trained nano-llm model in-process. Satisfies LLMClient."""
+    """Runs Nexora's self-trained model in-process. Satisfies LLMClient."""
 
     def __init__(self) -> None:
-        self._service = None
-        self._GenParams = None
+        self._generator = None
         self._load_error: str | None = None
+        self._model_info: dict = {}
         try:
             self._load()
-        except Exception as exc:  # keep the app up; report via health()/stream
+        except Exception as exc:
             self._load_error = str(exc)
-            log.warning("nano-llm model not loaded: %s", exc)
-
-    # --- loading -----------------------------------------------------------
-
-    def _resolve_dir(self) -> Path:
-        if settings.nano_llm_dir:
-            return Path(settings.nano_llm_dir)
-        # Sibling of the Nexora repo root, e.g. .../Desktop/nano-llm
-        return Path(__file__).resolve().parents[3].parent / "nano-llm"
+            log.warning("Nexora native model not loaded: %s", exc)
 
     def _load(self) -> None:
-        nano_dir = self._resolve_dir()
-        if not nano_dir.exists():
-            raise FileNotFoundError(f"nano-llm project not found at {nano_dir}")
-        if str(nano_dir) not in sys.path:
-            sys.path.insert(0, str(nano_dir))
+        import torch
+        from nexora_model.config import NexoraModelConfig, CPU_SMALL
+        from nexora_model.tokenizer import NexoraTokenizer
+        from nexora_model.transformer import NexoraTransformer
+        from nexora_model.inference import NexoraGenerator
 
-        # Lazy: pulls torch + nano-llm packages only now.
-        from serving.model_service import GenParams, ModelService
+        # Look for checkpoint in the nexora_model directory
+        model_dir = Path(__file__).resolve().parents[1] / "nexora_model"
+        ckpt_path = model_dir / "checkpoints" / "ckpt_best.pt"
+        tok_path = model_dir / "checkpoints" / "tokenizer.json"
 
-        self._GenParams = GenParams
-        ckpt = nano_dir / settings.nano_llm_checkpoint
-        tok = nano_dir / settings.nano_llm_tokenizer
-        if not ckpt.exists() or not tok.exists():
-            raise FileNotFoundError(
-                f"nano-llm artifacts missing (checkpoint exists={ckpt.exists()}, "
-                f"tokenizer exists={tok.exists()}). Train the model first — see "
-                f"nano-llm/README (make all)."
+        # Also try alternative locations
+        if not ckpt_path.exists():
+            ckpt_path = model_dir / "checkpoints" / "ckpt_final.pt"
+
+        if not ckpt_path.exists() or not tok_path.exists():
+            # No trained model yet — create an untrained one for demo
+            log.info("No trained checkpoint found. Creating untrained model for demonstration.")
+            config = CPU_SMALL
+
+            # Try to load tokenizer if it exists
+            if tok_path.exists():
+                tokenizer = NexoraTokenizer.load(str(tok_path))
+                config.vocab_size = tokenizer.vocab_size
+            else:
+                # Create a minimal tokenizer
+                log.info("No tokenizer found. Creating minimal tokenizer.")
+                sample_texts = [
+                    "Hello! I am Nexora, a helpful AI assistant.",
+                    "Machine learning is a branch of artificial intelligence.",
+                    "Python is a popular programming language.",
+                    "The internet connects computers worldwide.",
+                ]
+                tokenizer = NexoraTokenizer.train(sample_texts, vocab_size=config.vocab_size)
+                tok_path.parent.mkdir(parents=True, exist_ok=True)
+                tokenizer.save(str(tok_path))
+                config.vocab_size = tokenizer.vocab_size
+
+            model = NexoraTransformer(config)
+            self._generator = NexoraGenerator(model=model, tokenizer=tokenizer, device="cpu")
+            self._model_info = self._generator.model_info()
+            self._model_info["trained"] = False
+            log.info(
+                "Loaded UNTRAINED Nexora model (%s params). "
+                "Train the model for better responses: python -m nexora_model.scripts.train",
+                self._generator.num_parameters_str,
             )
+            return
 
-        self._service = ModelService.from_config(
-            {
-                "checkpoint": str(ckpt),
-                "tokenizer": str(tok),
-                "device": "cpu",
-                "instruction_format": not settings.nano_llm_chat_format,
-                "chat_format": settings.nano_llm_chat_format,
-            }
+        # Load trained model
+        self._generator = NexoraGenerator.from_checkpoint(
+            checkpoint_path=str(ckpt_path),
+            tokenizer_path=str(tok_path),
+            device="cpu",
         )
-        log.info("Loaded own nano-llm model: %s", self._service.info())
-
-    # --- LLMClient interface ----------------------------------------------
-
-    def _params(self, temperature: float | None, max_tokens: int | None):
-        # GenParams defaults already carry the chat decoding controls
-        # (min_new_tokens, no_repeat_ngram_size, suppress_special, top_p); we
-        # only override what the caller/config sets.
-        return self._GenParams(
-            max_new_tokens=max_tokens or settings.nano_llm_max_new_tokens,
-            temperature=(
-                temperature if temperature is not None else settings.nano_llm_temperature
-            ),
-            top_k=settings.nano_llm_top_k,
-        )
+        self._model_info = self._generator.model_info()
+        self._model_info["trained"] = True
+        log.info("Loaded trained Nexora model: %s", self._model_info)
 
     async def stream_chat(
         self,
@@ -100,21 +101,25 @@ class NanoLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> AsyncIterator[StreamChunk]:
-        if self._service is None:
+        if self._generator is None:
             raise LLMBackendError(
-                f"The local nano-llm model isn't loaded ({self._load_error}). "
-                f"Train it in the nano-llm project, then restart."
+                f"The Nexora native model isn't loaded ({self._load_error}). "
+                f"Check the nexora_model directory and restart."
             )
 
-        # The tiny model is single-turn/instruction-tuned; use the latest user
-        # message as the instruction (system/history are ignored by design).
-        user_msg = next(
-            (m.content for m in reversed(messages) if m.role == "user"), ""
-        )
-        if not user_msg.strip() and messages:
-            user_msg = messages[-1].content
+        from nexora_model.inference import GenerationConfig
 
-        gen = self._service.stream(user_msg, self._params(temperature, max_tokens))
+        config = GenerationConfig(
+            max_new_tokens=max_tokens or settings.nano_llm_max_new_tokens,
+            temperature=temperature if temperature is not None else settings.nano_llm_temperature,
+            top_k=settings.nano_llm_top_k,
+        )
+
+        # Convert ChatMessage objects to dicts
+        msg_dicts = [{"role": m.role, "content": m.content} for m in messages]
+
+        # Run the sync generator in a thread to avoid blocking the event loop
+        gen = self._generator.stream_chat(msg_dicts, config)
 
         def _next():
             try:
@@ -122,17 +127,19 @@ class NanoLMClient:
             except StopIteration:
                 return _STOP
 
-        # Drive the (blocking) sync generator one token at a time off the event
-        # loop, so streaming stays responsive.
         while True:
             delta = await asyncio.to_thread(_next)
             if delta is _STOP:
                 break
             yield StreamChunk(delta=delta)
+
         yield StreamChunk(done=True, usage=None)
 
     async def list_models(self) -> list[str]:
-        return ["nano-llm"]
+        return ["nexora-native"]
 
     async def health(self) -> bool:
-        return self._service is not None
+        return self._generator is not None
+
+    def get_model_info(self) -> dict:
+        return self._model_info

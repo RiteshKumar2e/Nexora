@@ -8,32 +8,62 @@ import type {
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("nexora_token");
+    if (token) {
+      return {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+    }
+  }
+  return {
+    "Content-Type": "application/json",
+  };
+}
+
 async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const text = await res.text();
+    let message = `${res.status} ${res.statusText}`;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.detail) message = parsed.detail;
+    } catch {}
+    throw new Error(message);
+  }
   return res.json() as Promise<T>;
 }
 
 export const api = {
   listConversations: () =>
-    fetch(`${API_URL}/api/conversations`).then(json<Conversation[]>),
+    fetch(`${API_URL}/api/conversations`, {
+      headers: getAuthHeaders(),
+    }).then(json<Conversation[]>),
 
   getConversation: (id: string) =>
-    fetch(`${API_URL}/api/conversations/${id}`).then(json<ConversationDetail>),
+    fetch(`${API_URL}/api/conversations/${id}`, {
+      headers: getAuthHeaders(),
+    }).then(json<ConversationDetail>),
 
   deleteConversation: (id: string) =>
-    fetch(`${API_URL}/api/conversations/${id}`, { method: "DELETE" }),
+    fetch(`${API_URL}/api/conversations/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    }),
 
   renameConversation: (id: string, title: string) =>
     fetch(`${API_URL}/api/conversations/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ title }),
     }).then(json<Conversation>),
 
   setPinned: (id: string, pinned: boolean) =>
     fetch(`${API_URL}/api/conversations/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ pinned }),
     }).then(json<Conversation>),
 };
@@ -56,15 +86,21 @@ export function streamChat(
   const controller = new AbortController();
 
   (async () => {
+    const headers = getAuthHeaders() as Record<string, string>;
     const res = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
 
     if (!res.ok || !res.body) {
-      handlers.onError?.(`Request failed: ${res.status}`);
+      let errText = `Request failed: ${res.status}`;
+      try {
+        const jsonErr = await res.json();
+        if (jsonErr.detail) errText = jsonErr.detail;
+      } catch {}
+      handlers.onError?.(errText);
       return;
     }
 
@@ -77,7 +113,6 @@ export function streamChat(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      // SSE frames are separated by a blank line.
       const frames = buffer.split("\n\n");
       buffer = frames.pop() ?? "";
 

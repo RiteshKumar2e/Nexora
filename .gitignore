@@ -34,3 +34,17 @@ build/
 *.sqlite3
 *.db
 uploads/
+data/uploads/
+
+# Model artifacts
+*.pt
+*.pth
+*.bin
+*.onnx
+checkpoints/
+artifacts/
+
+# Training logs
+runs/
+wandb/
+*.log

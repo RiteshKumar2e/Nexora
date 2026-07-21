@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.base import ChatMessage
@@ -15,25 +15,36 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 
 
-async def list_conversations(db: AsyncSession) -> list[Conversation]:
-    result = await db.execute(
-        select(Conversation).order_by(
-            Conversation.pinned.desc(), Conversation.updated_at.desc()
-        )
+async def list_conversations(db: AsyncSession, user_id: uuid.UUID | None = None) -> list[Conversation]:
+    stmt = select(Conversation)
+    if user_id is not None:
+        stmt = stmt.where(Conversation.user_id == user_id)
+    else:
+        stmt = stmt.where(Conversation.user_id.is_(None))
+        
+    stmt = stmt.order_by(
+        Conversation.pinned.desc(), Conversation.updated_at.desc()
     )
+    result = await db.execute(stmt)
     return list(result.scalars().all())
 
 
 async def get_conversation(
-    db: AsyncSession, conversation_id: uuid.UUID
+    db: AsyncSession, conversation_id: uuid.UUID, user_id: uuid.UUID | None = None
 ) -> Conversation | None:
-    return await db.get(Conversation, conversation_id)
+    convo = await db.get(Conversation, conversation_id)
+    if convo is None:
+        return None
+    # If the conversation belongs to a user and it doesn't match, block access
+    if convo.user_id is not None and convo.user_id != user_id:
+        return None
+    return convo
 
 
 async def create_conversation(
-    db: AsyncSession, *, title: str = "New chat", model: str | None = None
+    db: AsyncSession, *, title: str = "New chat", model: str | None = None, user_id: uuid.UUID | None = None
 ) -> Conversation:
-    convo = Conversation(title=title, model=model)
+    convo = Conversation(title=title, model=model, user_id=user_id)
     db.add(convo)
     await db.commit()
     await db.refresh(convo)

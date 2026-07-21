@@ -18,18 +18,19 @@ import {
   SquarePen,
   Store,
   Trash2,
+  Edit2,
+  Check,
+  X,
+  GraduationCap
 } from "lucide-react";
 import type { Conversation } from "@/lib/types";
 
-// Secondary nav — matches the reference layout; these are roadmap features, so
-// they show a "coming soon" toast for now.
+// Left sidebar navigation
 const SECONDARY = [
-  { label: "Library", Icon: Library },
   { label: "Projects", Icon: Folder },
-  { label: "Scheduled", Icon: Clock },
+  { label: "Library", Icon: Library },
   { label: "Plugins", Icon: Puzzle },
-  { label: "Codex", Icon: Bot },
-  { label: "More", Icon: MoreHorizontal },
+  { label: "Training", Icon: GraduationCap },
 ];
 
 function ConvoRow({
@@ -38,43 +39,106 @@ function ConvoRow({
   onSelect,
   onDelete,
   onPin,
+  onRename,
 }: {
   c: Conversation;
   active: boolean;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
+  onRename: (id: string, title: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(c.title);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  function handleSave(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (title.trim() && title !== c.title) {
+      onRename(c.id, title.trim());
+    }
+    setEditing(false);
+  }
+
+  function handleCancel(e: React.MouseEvent) {
+    e.stopPropagation();
+    setTitle(c.title);
+    setEditing(false);
+  }
+
+  function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (confirmDelete) {
+      onDelete(c.id);
+    } else {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 3000); // Reset after 3 seconds
+    }
+  }
+
   return (
     <div
       className={`convo-item ${active ? "active" : ""}`}
-      onClick={() => onSelect(c.id)}
+      onClick={() => !editing && onSelect(c.id)}
       title={c.title}
     >
       <MessageSquare size={15} className="convo-icon" />
-      <span className="convo-title">{c.title}</span>
-      <div className="convo-actions">
-        <button
-          className="convo-act"
-          title={c.pinned ? "Unpin" : "Pin"}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPin(c.id, !c.pinned);
-          }}
-        >
-          {c.pinned ? <PinOff size={14} /> : <Pin size={14} />}
-        </button>
-        <button
-          className="convo-act danger"
-          title="Delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(c.id);
-          }}
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
+      {editing ? (
+        <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+          <input
+            className="nav-search"
+            style={{ margin: 0, padding: "2px 4px", fontSize: "13px", width: "100%" }}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (title.trim() && title !== c.title) onRename(c.id, title.trim());
+                setEditing(false);
+              } else if (e.key === "Escape") {
+                setTitle(c.title);
+                setEditing(false);
+              }
+            }}
+          />
+          <button className="convo-act" onClick={handleSave}><Check size={13} /></button>
+          <button className="convo-act" onClick={handleCancel}><X size={13} /></button>
+        </div>
+      ) : (
+        <>
+          <span className="convo-title">{c.title}</span>
+          <div className="convo-actions">
+            <button
+              className="convo-act"
+              title={c.pinned ? "Unpin" : "Pin"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPin(c.id, !c.pinned);
+              }}
+            >
+              {c.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+            </button>
+            <button
+              className="convo-act"
+              title="Rename"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
+              <Edit2 size={13} />
+            </button>
+            <button
+              className={`convo-act danger ${confirmDelete ? "active" : ""}`}
+              title={confirmDelete ? "Click again to confirm" : "Delete"}
+              onClick={handleDelete}
+              style={confirmDelete ? { color: "var(--danger)", backgroundColor: "var(--danger-soft)" } : {}}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -86,7 +150,11 @@ export default function Sidebar({
   onNew,
   onDelete,
   onPin,
+  onRename,
   onCollapse,
+  user,
+  onAuthClick,
+  onSignOut,
 }: {
   conversations: Conversation[];
   activeId: string | null;
@@ -94,7 +162,11 @@ export default function Sidebar({
   onNew: () => void;
   onDelete: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
+  onRename: (id: string, title: string) => void;
   onCollapse: () => void;
+  user: any;
+  onAuthClick: () => void;
+  onSignOut: () => void;
 }) {
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
@@ -110,7 +182,7 @@ export default function Sidebar({
   }, [conversations, query]);
 
   const nothing = pinned.length === 0 && recents.length === 0;
-  const soon = (label: string) => toast(`${label} — coming soon`);
+  const navigateTo = (label: string) => toast(`${label} — loading workspace`);
 
   return (
     <aside className="sidebar">
@@ -119,7 +191,7 @@ export default function Sidebar({
           <span className="brand-mark">
             <Sparkles size={18} />
           </span>
-          <span className="brand-name">Nexora</span>
+          <span className="brand-name">Nexora AI</span>
         </div>
         <div className="sidebar-top-actions">
           <button
@@ -150,12 +222,14 @@ export default function Sidebar({
           />
         )}
         {SECONDARY.map(({ label, Icon }) => (
-          <button key={label} className="nav-row" onClick={() => soon(label)}>
+          <button key={label} className="nav-row" onClick={() => navigateTo(label)}>
             <Icon size={17} />
             <span>{label}</span>
           </button>
         ))}
       </div>
+
+      <div className="nav-divider" />
 
       <nav className="convo-list">
         {nothing && (
@@ -175,6 +249,7 @@ export default function Sidebar({
                 onSelect={onSelect}
                 onDelete={onDelete}
                 onPin={onPin}
+                onRename={onRename}
               />
             ))}
           </>
@@ -191,20 +266,37 @@ export default function Sidebar({
                 onSelect={onSelect}
                 onDelete={onDelete}
                 onPin={onPin}
+                onRename={onRename}
               />
             ))}
           </>
         )}
       </nav>
 
-      <button className="sidebar-profile" onClick={() => soon("Account")}>
-        <span className="profile-avatar">N</span>
-        <span className="profile-meta">
-          <span className="profile-name">Nexora</span>
-          <span className="profile-plan">Self-hosted</span>
-        </span>
-        <Store size={17} className="profile-store" />
-      </button>
+      {user ? (
+        <div className="sidebar-profile" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", overflow: "hidden" }}>
+            <span className="profile-avatar">{user.username[0].toUpperCase()}</span>
+            <span className="profile-meta" style={{ overflow: "hidden" }}>
+              <span className="profile-name" style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                {user.display_name || user.username}
+              </span>
+              <span className="profile-plan" onClick={onSignOut} style={{ cursor: "pointer", textDecoration: "underline", color: "var(--danger)" }}>
+                Sign Out
+              </span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <button className="sidebar-profile" onClick={onAuthClick}>
+          <span className="profile-avatar">?</span>
+          <span className="profile-meta">
+            <span className="profile-name">Sign In / Register</span>
+            <span className="profile-plan">Sync conversations</span>
+          </span>
+          <Store size={17} className="profile-store" />
+        </button>
+      )}
     </aside>
   );
 }

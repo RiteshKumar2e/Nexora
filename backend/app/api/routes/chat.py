@@ -1,21 +1,11 @@
-"""Streaming chat endpoint (Server-Sent Events).
-
-Flow:
-  1. Resolve or create the conversation and persist the user turn.
-  2. Build the conversation context and stream tokens from the local LLM.
-  3. Accumulate the assistant text, persist it (with usage) when the stream ends.
-
-Sessions are managed explicitly (not via Depends) because a StreamingResponse
-generator can outlive the request-scoped dependency, which would otherwise
-close the session mid-stream.
-"""
+"""Streaming chat endpoint (Server-Sent Events) with RAG & Projects integrations."""
 from __future__ import annotations
 
 import json
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Header
 from fastapi.responses import StreamingResponse
 
 from app.core.config import settings
@@ -25,6 +15,7 @@ from app.llm.factory import get_llm_client
 from app.llm.ollama_client import LLMBackendError
 from app.schemas.chat import ChatRequest
 from app.services import conversation_service as svc
+from app.auth.routes import get_current_user_optional
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 log = get_logger("chat")
@@ -46,31 +37,61 @@ def _sse(event: str, data: dict) -> str:
 
 
 @router.post("")
-async def chat(body: ChatRequest) -> StreamingResponse:
-    # Leave the model unset unless the client asks for a specific one, so each
-    # backend can choose: Groq walks its best-first discovery/fallback chain,
-    # Ollama uses its configured default. `model_label` is only for storage/UI.
+async def chat(
+    body: ChatRequest,
+    authorization: str | None = Header(None),
+) -> StreamingResponse:
     requested_model = body.model
     model_label = body.model or settings.llm_backend
 
     # --- Pre-stream: persist user turn, prepare context (own session) ---
     async with SessionLocal() as db:
+        user = None
+        if authorization:
+            user = await get_current_user_optional(db, authorization)
+        user_id = user.id if user else None
+
         if body.conversation_id is not None:
-            convo = await svc.get_conversation(db, body.conversation_id)
+            convo = await svc.get_conversation(db, body.conversation_id, user_id=user_id)
             if convo is None:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation not found")
             is_new = False
         else:
             convo = await svc.create_conversation(
-                db, title=svc.derive_title(body.message), model=model_label
+                db, title=svc.derive_title(body.message), model=model_label, user_id=user_id
             )
             is_new = True
 
         await svc.add_message(
             db, conversation_id=convo.id, role="user", content=body.message
         )
+        
+        # Resolve project scoping instructions and documents for RAG context
+        project_instructions = ""
+        rag_context = ""
+        citations = []
+        
+        if convo.project_id:
+            from app.models.project import Project
+            from app.rag.service import retrieve_rag_context
+            
+            project = await db.get(Project, convo.project_id)
+            if project:
+                project_instructions = project.instructions or ""
+                
+            # Query lexical matching chunks
+            rag_context, citations = await retrieve_rag_context(
+                db, query=body.message, project_id=convo.project_id, user_id=user_id
+            )
+
+        final_system_prompt = SYSTEM_PROMPT
+        if project_instructions:
+            final_system_prompt += f"\n\nProject Instructions:\n{project_instructions}"
+        if rag_context:
+            final_system_prompt += f"\n\n{rag_context}"
+
         context = await svc.build_llm_context(
-            db, convo.id, system_prompt=SYSTEM_PROMPT
+            db, convo.id, system_prompt=final_system_prompt
         )
         conversation_id = convo.id
         title = convo.title
@@ -83,6 +104,10 @@ async def chat(body: ChatRequest) -> StreamingResponse:
             "meta",
             {"conversation_id": str(conversation_id), "title": title, "is_new": is_new},
         )
+        
+        # Yield retrieval sources if any
+        if citations:
+            yield _sse("citations", {"citations": citations})
 
         parts: list[str] = []
         usage = None

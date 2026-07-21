@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # --- Redis ---
     redis_url: str = "redis://localhost:6379/0"
 
+    # --- JWT Auth ---
+    jwt_secret_key: str = "dev-only-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
     # --- LLM backend selection ---
     # "nano"   -> run OUR OWN from-scratch model (nano-llm) in-process. No
     #             external server, no third-party API.
