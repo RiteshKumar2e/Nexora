@@ -19,6 +19,23 @@ function textOf(node: ReactNode): string {
   return "";
 }
 
+/**
+ * Normalize LaTeX delimiters so remark-math (which only understands `$…$` and
+ * `$$…$$`) renders what models actually emit: `\(…\)` and `\[…\]`. Code spans
+ * and fenced code blocks are left untouched so real code isn't mangled.
+ */
+function normalizeMath(input: string): string {
+  const segments = input.split(/(```[\s\S]*?```|`[^`]*`)/g);
+  return segments
+    .map((seg, i) => {
+      if (i % 2 === 1) return seg; // captured code segment — leave as-is
+      return seg
+        .replace(/\\\[|\\\]/g, () => "$$") // \[ \] -> $$  (display math)
+        .replace(/\\\(|\\\)/g, () => "$"); // \( \) -> $   (inline math)
+    })
+    .join("");
+}
+
 function CodeBlock({ className, children }: any) {
   const lang = /language-(\w+)/.exec(className || "")?.[1];
 
@@ -42,7 +59,7 @@ function MarkdownBase({ content }: { content: string }) {
         rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{ code: CodeBlock }}
       >
-        {content}
+        {normalizeMath(content)}
       </ReactMarkdown>
     </div>
   );

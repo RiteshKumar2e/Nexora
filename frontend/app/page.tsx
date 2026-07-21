@@ -129,8 +129,7 @@ export default function ChatPage() {
               <div className="welcome-glow" />
               <h1>How can I help you today?</h1>
               <p>
-                A self-hosted assistant powered entirely by a local open-weight
-                model. Ask anything — code, math, diagrams, and more.
+                Ask anything — explanations, code, math, diagrams, and more.
               </p>
               <div className="suggestions">
                 {[

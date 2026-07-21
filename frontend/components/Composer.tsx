@@ -62,8 +62,7 @@ export default function Composer({
         )}
       </div>
       <p className="composer-hint">
-        Nexora runs on a locally hosted open-weight model. Responses may be
-        imperfect.
+        Nexora can make mistakes. Consider checking important information.
       </p>
     </div>
   );

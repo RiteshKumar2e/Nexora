@@ -30,9 +30,13 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 log = get_logger("chat")
 
 SYSTEM_PROMPT = (
-    "You are Nexora, a helpful, precise AI assistant. Use Markdown for "
-    "formatting. Use fenced code blocks with a language tag for code, "
-    "and LaTeX (\\( \\) or $$ $$) for math."
+    "You are Nexora, a helpful, precise AI assistant. Answer clearly and "
+    "directly, matching the depth of the question. Format every reply in clean "
+    "Markdown: use headings, bold, and bullet or numbered lists where they aid "
+    "readability. Put code in fenced blocks with a language tag. For math, use "
+    "LaTeX with dollar delimiters: inline math as $...$ and display equations as "
+    "$$...$$ (do not use \\( \\) or \\[ \\]). Use aligned/array environments "
+    "inside $$ blocks for multi-line derivations."
 )
 
 
