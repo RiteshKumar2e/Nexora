@@ -8,9 +8,10 @@ without touching application logic.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -25,7 +26,11 @@ class Settings(BaseSettings):
     app_name: str = "Nexora"
     environment: str = "development"
     log_level: str = "INFO"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # NoDecode: skip pydantic-settings' JSON parsing so the validator below can
+    # accept a plain comma-separated string from .env (e.g. "a.com,b.com").
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
     # --- Database ---
     database_url: str = "postgresql+asyncpg://nexora:nexora@localhost:5432/nexora"
@@ -42,10 +47,13 @@ class Settings(BaseSettings):
     # --- Own model (nano-llm) ---
     # Path to the nano-llm project; empty auto-detects the sibling ../nano-llm.
     nano_llm_dir: str = ""
-    nano_llm_checkpoint: str = "artifacts/checkpoints_sft/ckpt_best.pt"
-    nano_llm_tokenizer: str = "artifacts/tokenizer_stories.json"
+    # Chat/instruction model from the two-stage upgrade (role-token format).
+    nano_llm_checkpoint: str = "artifacts/chat/ckpt_chat.pt"
+    nano_llm_tokenizer: str = "artifacts/tokenizer_chat.json"
+    # Use the role-based chat format + chat decoding controls at inference.
+    nano_llm_chat_format: bool = True
     nano_llm_max_new_tokens: int = 160
-    nano_llm_temperature: float = 0.8
+    nano_llm_temperature: float = 0.7
     nano_llm_top_k: int = 40
 
     # --- Ollama / OpenAI-compatible server (only used when llm_backend=ollama) ---

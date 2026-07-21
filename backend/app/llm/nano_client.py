@@ -72,7 +72,8 @@ class NanoLMClient:
                 "checkpoint": str(ckpt),
                 "tokenizer": str(tok),
                 "device": "cpu",
-                "instruction_format": True,
+                "instruction_format": not settings.nano_llm_chat_format,
+                "chat_format": settings.nano_llm_chat_format,
             }
         )
         log.info("Loaded own nano-llm model: %s", self._service.info())
@@ -80,6 +81,9 @@ class NanoLMClient:
     # --- LLMClient interface ----------------------------------------------
 
     def _params(self, temperature: float | None, max_tokens: int | None):
+        # GenParams defaults already carry the chat decoding controls
+        # (min_new_tokens, no_repeat_ngram_size, suppress_special, top_p); we
+        # only override what the caller/config sets.
         return self._GenParams(
             max_new_tokens=max_tokens or settings.nano_llm_max_new_tokens,
             temperature=(
