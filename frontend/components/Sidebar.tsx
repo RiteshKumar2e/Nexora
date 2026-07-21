@@ -1,17 +1,36 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
+  Bot,
+  Clock,
+  Folder,
+  Library,
   MessageSquare,
+  MoreHorizontal,
   PanelLeftClose,
   Pin,
   PinOff,
+  Puzzle,
   Search,
   Sparkles,
   SquarePen,
+  Store,
   Trash2,
 } from "lucide-react";
 import type { Conversation } from "@/lib/types";
+
+// Secondary nav — matches the reference layout; these are roadmap features, so
+// they show a "coming soon" toast for now.
+const SECONDARY = [
+  { label: "Library", Icon: Library },
+  { label: "Projects", Icon: Folder },
+  { label: "Scheduled", Icon: Clock },
+  { label: "Plugins", Icon: Puzzle },
+  { label: "Codex", Icon: Bot },
+  { label: "More", Icon: MoreHorizontal },
+];
 
 function ConvoRow({
   c,
@@ -91,6 +110,7 @@ export default function Sidebar({
   }, [conversations, query]);
 
   const nothing = pinned.length === 0 && recents.length === 0;
+  const soon = (label: string) => toast(`${label} — coming soon`);
 
   return (
     <aside className="sidebar">
@@ -101,22 +121,24 @@ export default function Sidebar({
           </span>
           <span className="brand-name">Nexora</span>
         </div>
-        <button className="icon-btn sm" title="Collapse sidebar" onClick={onCollapse}>
-          <PanelLeftClose size={18} />
-        </button>
+        <div className="sidebar-top-actions">
+          <button
+            className={`icon-btn sm ${searching ? "on" : ""}`}
+            title="Search chats"
+            onClick={() => setSearching((s) => !s)}
+          >
+            <Search size={17} />
+          </button>
+          <button className="icon-btn sm" title="Collapse sidebar" onClick={onCollapse}>
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="sidebar-nav">
-        <button className="nav-row" onClick={onNew}>
+        <button className="nav-row primary" onClick={onNew}>
           <SquarePen size={17} />
           <span>New chat</span>
-        </button>
-        <button
-          className={`nav-row ${searching ? "active" : ""}`}
-          onClick={() => setSearching((s) => !s)}
-        >
-          <Search size={17} />
-          <span>Search chats</span>
         </button>
         {searching && (
           <input
@@ -127,6 +149,12 @@ export default function Sidebar({
             onChange={(e) => setQuery(e.target.value)}
           />
         )}
+        {SECONDARY.map(({ label, Icon }) => (
+          <button key={label} className="nav-row" onClick={() => soon(label)}>
+            <Icon size={17} />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
       <nav className="convo-list">
@@ -169,9 +197,14 @@ export default function Sidebar({
         )}
       </nav>
 
-      <div className="sidebar-footer">
-        <span className="dot" /> Connected
-      </div>
+      <button className="sidebar-profile" onClick={() => soon("Account")}>
+        <span className="profile-avatar">N</span>
+        <span className="profile-meta">
+          <span className="profile-name">Nexora</span>
+          <span className="profile-plan">Self-hosted</span>
+        </span>
+        <Store size={17} className="profile-store" />
+      </button>
     </aside>
   );
 }
