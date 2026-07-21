@@ -1,0 +1,29 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Settings & validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Database (async). asyncpg for Postgres/prod; aiosqlite for local dev (no Docker).
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+aiosqlite==0.22.1
+alembic==1.14.0
+
+# Own from-scratch model backend (llm_backend=nano). CPU build:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Runs the nano-llm checkpoint in-process (no external LLM server).
+torch>=2.3
+
+# Cache / queue (used from Phase 2 onward)
+redis==5.2.1
+
+# HTTP client for the local LLM server (OpenAI-compatible)
+httpx==0.28.1
+
+# Utilities
+python-dotenv==1.0.1
+tenacity==9.0.0
