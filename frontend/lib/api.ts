@@ -29,6 +29,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
     }).then(json<Conversation>),
+
+  setPinned: (id: string, pinned: boolean) =>
+    fetch(`${API_URL}/api/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
+    }).then(json<Conversation>),
 };
 
 export interface StreamHandlers {
