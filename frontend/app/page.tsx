@@ -15,6 +15,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,6 +55,19 @@ export default function ChatPage() {
   async function deleteConversation(id: string) {
     await api.deleteConversation(id);
     if (id === activeId) newChat();
+    refreshConversations();
+  }
+
+  async function pinConversation(id: string, pinned: boolean) {
+    // Optimistic: flip locally, then persist.
+    setConversations((cs) =>
+      cs.map((c) => (c.id === id ? { ...c, pinned } : c)),
+    );
+    try {
+      await api.setPinned(id, pinned);
+    } catch {
+      toast.error("Couldn't update pin");
+    }
     refreshConversations();
   }
 
@@ -119,17 +133,26 @@ export default function ChatPage() {
   const activeTitle = conversations.find((c) => c.id === activeId)?.title;
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={selectConversation}
-        onNew={newChat}
-        onDelete={deleteConversation}
-      />
+    <div className={`app-shell ${sidebarOpen ? "" : "sidebar-collapsed"}`}>
+      {sidebarOpen && (
+        <Sidebar
+          conversations={conversations}
+          activeId={activeId}
+          onSelect={selectConversation}
+          onNew={newChat}
+          onDelete={deleteConversation}
+          onPin={pinConversation}
+          onCollapse={() => setSidebarOpen(false)}
+        />
+      )}
 
       <main className="chat-main">
-        <Header title={activeTitle} />
+        <Header
+          title={activeTitle}
+          sidebarOpen={sidebarOpen}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          onNewChat={newChat}
+        />
         <div className="chat-scroll" ref={scrollRef}>
           {empty ? (
             <div className="welcome">
