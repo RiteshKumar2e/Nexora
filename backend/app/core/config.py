@@ -40,9 +40,25 @@ class Settings(BaseSettings):
 
     # --- LLM backend selection ---
     # "nano"   -> run OUR OWN from-scratch model (nano-llm) in-process. No
-    #             external server, no third-party API. This is the default.
+    #             external server, no third-party API.
     # "ollama" -> use a local Ollama / OpenAI-compatible server instead.
+    # "groq"   -> use the hosted Groq API with multi-key + multi-model fallback.
     llm_backend: str = "nano"
+
+    # --- Groq (hosted API; only used when llm_backend=groq) ---
+    # Multiple keys: when one is rate-limited/exhausted, the client rotates to the
+    # next. Set in .env as a comma-separated list: GROQ_API_KEYS=key1,key2
+    groq_api_keys: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    # Optional explicit model fallback order (comma-separated). Empty => the
+    # client auto-discovers Groq's available chat models, ranked best-first.
+    groq_models: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    groq_temperature: float = 0.7
+    groq_max_tokens: int = 2048
+    groq_request_timeout: int = 120
+    # If every Groq key+model fails, fall back to the local nano-llm so the
+    # assistant never goes fully down.
+    groq_fallback_to_nano: bool = True
 
     # --- Own model (nano-llm) ---
     # Path to the nano-llm project; empty auto-detects the sibling ../nano-llm.
@@ -63,12 +79,12 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 2048
     llm_request_timeout: int = 300
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "groq_api_keys", "groq_models", mode="before")
     @classmethod
-    def _split_cors(cls, v: object) -> object:
-        """Accept a comma-separated string from env as a list."""
+    def _split_csv(cls, v: object) -> object:
+        """Accept a comma-separated string from env as a list of trimmed items."""
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
+            return [item.strip() for item in v.split(",") if item.strip()]
         return v
 
     @property

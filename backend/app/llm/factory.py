@@ -20,8 +20,13 @@ def get_llm_client() -> LLMClient:
     external server. Set `llm_backend=ollama` to use a local OpenAI-compatible
     server instead (covers Ollama / vLLM / SGLang / llama.cpp).
     """
-    if settings.llm_backend.lower() == "ollama":
+    backend = settings.llm_backend.lower()
+    if backend == "ollama":
         return OllamaClient()
+    if backend == "groq":
+        from app.llm.groq_client import GroqClient
+
+        return GroqClient()
     # Imported lazily so the app doesn't require torch unless this backend runs.
     from app.llm.nano_client import NanoLMClient
 

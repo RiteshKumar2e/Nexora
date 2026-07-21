@@ -43,7 +43,11 @@ def _sse(event: str, data: dict) -> str:
 
 @router.post("")
 async def chat(body: ChatRequest) -> StreamingResponse:
-    model = body.model or settings.llm_model
+    # Leave the model unset unless the client asks for a specific one, so each
+    # backend can choose: Groq walks its best-first discovery/fallback chain,
+    # Ollama uses its configured default. `model_label` is only for storage/UI.
+    requested_model = body.model
+    model_label = body.model or settings.llm_backend
 
     # --- Pre-stream: persist user turn, prepare context (own session) ---
     async with SessionLocal() as db:
@@ -54,7 +58,7 @@ async def chat(body: ChatRequest) -> StreamingResponse:
             is_new = False
         else:
             convo = await svc.create_conversation(
-                db, title=svc.derive_title(body.message), model=model
+                db, title=svc.derive_title(body.message), model=model_label
             )
             is_new = True
 
@@ -80,7 +84,7 @@ async def chat(body: ChatRequest) -> StreamingResponse:
         usage = None
         try:
             async for chunk in llm.stream_chat(
-                context, model=model, temperature=body.temperature
+                context, model=requested_model, temperature=body.temperature
             ):
                 if chunk.delta:
                     parts.append(chunk.delta)
@@ -106,7 +110,7 @@ async def chat(body: ChatRequest) -> StreamingResponse:
                     conversation_id=conversation_id,
                     role="assistant",
                     content=assistant_text,
-                    model=model,
+                    model=model_label,
                     prompt_tokens=usage.prompt_tokens if usage else None,
                     completion_tokens=usage.completion_tokens if usage else None,
                 )
