@@ -25,26 +25,43 @@ log = get_logger("llm.hybrid")
 
 _LEAK = ("<|", "|>")
 
+# Common function words. A reply that is mostly these carries little content —
+# a good signal that a weak model produced incoherent filler.
+_STOPWORDS = {
+    "the", "is", "a", "an", "of", "to", "it", "in", "and", "that", "this",
+    "are", "was", "were", "for", "on", "as", "with", "be", "by", "at", "or",
+    "if", "you", "i", "he", "she", "they", "we", "then", "than", "more", "all",
+    "no", "not", "there", "here", "its", "his", "her", "them", "so", "but",
+}
+
 
 def looks_proper(text: str) -> bool:
-    """Heuristic quality gate for a native-model answer."""
+    """Heuristic quality gate for a native-model answer.
+
+    Checks length, distinct-word ratio, single-token dominance, stopword ratio,
+    and role-token leakage. It cannot verify factual correctness — it only
+    filters obviously low-quality output so the hybrid backend falls back to Groq.
+    """
     t = (text or "").strip()
     if len(t) < settings.hybrid_min_chars:
         return False
     words = t.split()
     if len(words) < settings.hybrid_min_words:
         return False
-    # Too repetitive (few distinct words) => low quality.
-    uniq_ratio = len(set(w.lower() for w in words)) / len(words)
-    if uniq_ratio < settings.hybrid_min_unique_ratio:
-        return False
     # Role/special tokens must never leak into a shown answer.
     if any(m in t for m in _LEAK):
         return False
+    lowers = [w.lower().strip(".,!?;:") for w in words]
+    # Too repetitive (few distinct words) => low quality.
+    if len(set(lowers)) / len(words) < settings.hybrid_min_unique_ratio:
+        return False
     # A single token dominating the output => degenerate loop.
     from collections import Counter
-    most = Counter(w.lower() for w in words).most_common(1)[0][1]
-    if most / len(words) > 0.4:
+    if Counter(lowers).most_common(1)[0][1] / len(words) > 0.4:
+        return False
+    # Mostly function words => low-content filler (weak-model incoherence).
+    stop_ratio = sum(1 for w in lowers if w in _STOPWORDS) / len(words)
+    if stop_ratio > settings.hybrid_max_stopword_ratio:
         return False
     return True
 

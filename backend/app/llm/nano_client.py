@@ -41,7 +41,10 @@ class NanoLMClient:
         from nexora_model.inference import NexoraGenerator
 
         # Look for checkpoint in the nexora_model directory
-        model_dir = Path(__file__).resolve().parents[1] / "nexora_model"
+        # Resolve the checkpoints dir from the nexora_model package itself, so it
+        # works no matter where this client lives (was wrongly app/nexora_model).
+        import nexora_model
+        model_dir = Path(nexora_model.__file__).resolve().parent
         ckpt_path = model_dir / "checkpoints" / "ckpt_best.pt"
         tok_path = model_dir / "checkpoints" / "tokenizer.json"
 

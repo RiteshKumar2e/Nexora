@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     hybrid_min_chars: int = 24
     hybrid_min_words: int = 5
     hybrid_min_unique_ratio: float = 0.5
+    hybrid_max_stopword_ratio: float = 0.6
 
     # --- Groq (hosted API; only used when llm_backend=groq) ---
     # Multiple keys: when one is rate-limited/exhausted, the client rotates to the

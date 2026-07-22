@@ -138,9 +138,23 @@ export default function ChatPage() {
     }
   }
 
-  function send(text?: string) {
-    const msg = (text ?? input).trim();
+  const GUEST_MESSAGE_LIMIT = 10;
+
+  function send(text?: string, attachmentText?: string) {
+    let msg = (text ?? input).trim();
+    if (attachmentText) msg = (msg + attachmentText).trim();
     if (!msg || busy) return;
+
+    // Mandatory sign-in after 10 messages for signed-out guests.
+    if (!user) {
+      const used = Number(localStorage.getItem("nexora_guest_count") || "0");
+      if (used >= GUEST_MESSAGE_LIMIT) {
+        setShowAuthModal(true);
+        toast.info("You've reached the free limit — please sign in to continue.");
+        return;
+      }
+      localStorage.setItem("nexora_guest_count", String(used + 1));
+    }
 
     setInput("");
     setBusy(true);
@@ -250,6 +264,7 @@ export default function ChatPage() {
 
   function handleAuthSuccess(token: string, user: any) {
     localStorage.setItem("nexora_token", token);
+    localStorage.removeItem("nexora_guest_count"); // signed in — clear guest cap
     setUser(user);
     refreshConversations();
   }
@@ -357,7 +372,7 @@ export default function ChatPage() {
           <Composer
             value={input}
             onChange={setInput}
-            onSend={() => send()}
+            onSend={(att) => send(undefined, att)}
             onStop={stop}
             busy={busy}
           />
