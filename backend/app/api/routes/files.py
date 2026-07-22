@@ -29,6 +29,8 @@ class FileRead(BaseModel):
     mime_type: str
     created_at: str
     project_id: Optional[uuid.UUID] = None
+    # Extracted text (PDF/DOCX/CSV/… parsed server-side), truncated for the chat.
+    parsed_text: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -99,7 +101,8 @@ async def upload_file(
         file_size=db_file.file_size,
         mime_type=db_file.mime_type,
         created_at=db_file.created_at.isoformat(),
-        project_id=db_file.project_id
+        project_id=db_file.project_id,
+        parsed_text=(parsed_text or "")[:20000],  # capped for the chat context
     )
 
 

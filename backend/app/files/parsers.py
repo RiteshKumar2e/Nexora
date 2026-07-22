@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from pathlib import Path
 
 
@@ -42,22 +43,82 @@ def parse_json(file_bytes: bytes) -> str:
         return f"Invalid JSON file: {e}"
 
 
+def parse_pdf(file_bytes: bytes) -> str:
+    """Extract text from a PDF using pypdf (real extraction, page by page)."""
+    from pypdf import PdfReader
+
+    reader = PdfReader(BytesIO(file_bytes))
+    pages = []
+    for i, page in enumerate(reader.pages):
+        try:
+            txt = page.extract_text() or ""
+        except Exception:
+            txt = ""
+        if txt.strip():
+            pages.append(f"--- Page {i + 1} ---\n{txt.strip()}")
+    if not pages:
+        return "[PDF contained no extractable text — it may be a scanned image.]"
+    return "\n\n".join(pages)
+
+
+def parse_docx(file_bytes: bytes) -> str:
+    """Extract text from a Word .docx using python-docx (paragraphs + tables)."""
+    import docx
+
+    doc = docx.Document(BytesIO(file_bytes))
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells]
+            if any(cells):
+                parts.append(" | ".join(cells))
+    return "\n".join(parts) or "[DOCX contained no readable text.]"
+
+
+def parse_xlsx(file_bytes: bytes) -> str:
+    """Extract cell values from an Excel workbook (best effort; needs openpyxl)."""
+    try:
+        import openpyxl
+    except ImportError:
+        return "[XLSX parsing needs openpyxl: pip install openpyxl]"
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    parts = []
+    for ws in wb.worksheets:
+        parts.append(f"--- Sheet: {ws.title} ---")
+        for row in ws.iter_rows(values_only=True):
+            cells = [str(c) for c in row if c is not None]
+            if cells:
+                parts.append(" | ".join(cells))
+    return "\n".join(parts)
+
+
 def parse_document(filename: str, file_bytes: bytes) -> str:
-    """Dispatch file bytes to appropriate text extractor based on file extension."""
+    """Dispatch file bytes to the right text extractor based on file extension."""
     ext = Path(filename).suffix.lower()
-    
-    if ext in (".txt", ".md", ".py", ".js", ".ts", ".html", ".css", ".rs", ".go", ".c", ".cpp", ".java"):
+
+    if ext in (".txt", ".md", ".markdown", ".py", ".js", ".ts", ".tsx", ".jsx",
+               ".html", ".htm", ".css", ".rs", ".go", ".c", ".cpp", ".java",
+               ".rb", ".php", ".sh", ".sql", ".yaml", ".yml", ".xml", ".log",
+               ".ini", ".toml"):
         return parse_txt(file_bytes)
-    elif ext == ".csv":
+    if ext == ".csv":
         return parse_csv(file_bytes)
-    elif ext == ".json":
+    if ext == ".json":
         return parse_json(file_bytes)
-    elif ext == ".pdf":
-        # Basic fallback for pdf text extraction
-        text = parse_txt(file_bytes)
-        # Strip control and binary non-ascii characters to get printable texts
-        cleaned = "".join(c for c in text if c.isprintable() or c in "\n\r\t")
-        return f"[PDF Extract - Printable content]\n{cleaned[:20000]}"
-    else:
-        # Fallback to simple decoded text
-        return parse_txt(file_bytes)[:50000]
+    if ext == ".pdf":
+        try:
+            return parse_pdf(file_bytes)
+        except Exception as exc:  # noqa: BLE001
+            return f"[Could not read PDF: {exc}]"
+    if ext in (".docx", ".doc"):
+        try:
+            return parse_docx(file_bytes)
+        except Exception as exc:  # noqa: BLE001
+            return f"[Could not read Word document: {exc}]"
+    if ext in (".xlsx", ".xlsm"):
+        try:
+            return parse_xlsx(file_bytes)
+        except Exception as exc:  # noqa: BLE001
+            return f"[Could not read spreadsheet: {exc}]"
+    # Unknown/binary: try a best-effort text decode.
+    return parse_txt(file_bytes)[:50000]

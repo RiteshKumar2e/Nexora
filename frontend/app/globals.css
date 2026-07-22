@@ -880,6 +880,17 @@ body {
 .mi-label { font-size: var(--text-sm); font-weight: 500; }
 .mi-hint { font-size: var(--text-xs); color: var(--text-muted); }
 
+/* Send-button spinner while a file is being uploaded/parsed */
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
 /* Voice-command mic button */
 .mic-btn.listening {
   color: var(--danger);

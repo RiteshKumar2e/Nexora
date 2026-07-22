@@ -5,6 +5,7 @@ import {
   ArrowUp, Square, Plus, FileText, Mic, Paperclip, Globe, Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 const TEXT_EXT = new Set([
   "txt", "md", "markdown", "csv", "tsv", "json", "yaml", "yml", "xml", "html",
@@ -38,6 +39,7 @@ export default function Composer({
   const [isDragOver, setIsDragOver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [preparing, setPreparing] = useState(false);
 
   useEffect(() => () => recognitionRef.current?.stop?.(), []);
 
@@ -54,21 +56,36 @@ export default function Composer({
     const parts: string[] = [];
     for (const f of files) {
       if (isTextFile(f)) {
+        // Plain text: read directly in the browser (fast, no upload).
         try {
           parts.push(`\n\n[Attached file: ${f.name}]\n${(await f.text()).slice(0, MAX_CHARS)}`);
         } catch {
           parts.push(`\n\n[Attached file: ${f.name} — could not read]`);
         }
       } else {
-        parts.push(`\n\n[Attached file: ${f.name} — ${(f.size / 1024).toFixed(0)} KB, binary/non-text]`);
+        // PDF/DOCX/XLSX/etc.: upload so the backend extracts the text.
+        try {
+          const res = await api.uploadFile(f);
+          const text = (res.parsed_text || "").slice(0, MAX_CHARS);
+          parts.push(
+            text.trim()
+              ? `\n\n[Attached file: ${f.name}]\n${text}`
+              : `\n\n[Attached file: ${f.name} — no extractable text (maybe a scanned image).]`,
+          );
+        } catch {
+          parts.push(`\n\n[Attached file: ${f.name} — upload/parse failed]`);
+        }
       }
     }
     return parts.join("");
   }
 
   async function doSend() {
-    if (busy || (!value.trim() && files.length === 0)) return;
+    if (busy || preparing || (!value.trim() && files.length === 0)) return;
+    const hasBinary = files.some((f) => !isTextFile(f));
+    if (hasBinary) setPreparing(true);
     const attachment = await buildAttachmentText();
+    setPreparing(false);
     onSend(attachment || undefined);
     setFiles([]);
     if (ref.current) ref.current.style.height = "auto";
@@ -210,8 +227,9 @@ export default function Composer({
             </button>
           ) : (
             <button className="send-btn" onClick={doSend}
-              disabled={!value.trim() && files.length === 0} title="Send message">
-              <ArrowUp size={18} />
+              disabled={preparing || (!value.trim() && files.length === 0)}
+              title={preparing ? "Reading files…" : "Send message"}>
+              {preparing ? <span className="btn-spinner" /> : <ArrowUp size={18} />}
             </button>
           )}
         </div>

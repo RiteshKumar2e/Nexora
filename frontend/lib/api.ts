@@ -67,6 +67,26 @@ export const api = {
       body: JSON.stringify({ pinned }),
     }).then(json<Conversation>),
 
+  // Upload a file; the backend parses it (PDF/DOCX/XLSX/CSV/…) and returns text.
+  uploadFile: async (
+    file: File,
+  ): Promise<{ filename: string; parsed_text?: string }> => {
+    const form = new FormData();
+    form.append("file", file);
+    // NOTE: do NOT set Content-Type — the browser sets the multipart boundary.
+    const headers: HeadersInit = {};
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("nexora_token");
+      if (token) (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_URL}/api/files/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    return json<{ filename: string; parsed_text?: string }>(res);
+  },
+
   // RLHF feedback: rating (and optional correction) for one assistant turn.
   sendFeedback: (body: {
     user_message: string;
