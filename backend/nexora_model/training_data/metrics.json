@@ -1,0 +1,10 @@
+[
+  {
+    "round": 1,
+    "timestamp": "2026-07-22T08:00:29.508530+00:00",
+    "total_examples": 14837,
+    "train_examples": 14096,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  }
+]
