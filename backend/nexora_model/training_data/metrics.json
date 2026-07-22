@@ -14,5 +14,13 @@
     "train_examples": 19792,
     "steps_this_round": 800,
     "vocab_size": 8365
+  },
+  {
+    "round": 3,
+    "timestamp": "2026-07-22T12:38:33.965396+00:00",
+    "total_examples": 21485,
+    "train_examples": 20411,
+    "steps_this_round": 800,
+    "vocab_size": 8365
   }
 ]
