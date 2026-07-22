@@ -1,0 +1,4 @@
+python -m nexora_model.train_all_day --round-steps 800
+
+
+python -m nexora_model.generate_groq_data --target 30000
