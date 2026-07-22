@@ -676,13 +676,19 @@ body {
 .code-copy:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
 .markdown .code-block pre { margin: 0; border: none; border-radius: 0; background: transparent; }
 
-/* Syntax highlighting — dark mode tokens */
-.markdown pre code, .hljs { color: #c9d1d9; }
+/* Syntax highlighting — code blocks are always dark, so force light-on-dark
+   tokens regardless of the page theme (fixes invisible markdown bold/italic). */
+.markdown pre code, .hljs { color: var(--code-text); }
 .hljs-comment, .hljs-quote { color: #8b949e; }
 .hljs-keyword, .hljs-built_in, .hljs-type, .hljs-tag { color: #ff7b72; }
 .hljs-string, .hljs-attr, .hljs-symbol { color: #a5d6ff; }
 .hljs-number, .hljs-literal { color: #79c0ff; }
 .hljs-title, .hljs-function, .hljs-name, .hljs-section { color: #d2a8ff; }
+/* Markdown emphasis inside code blocks must stay visible on the dark bg. */
+.hljs-strong { color: var(--code-text); font-weight: 700; }
+.hljs-emphasis { color: var(--code-text); font-style: italic; }
+.hljs-bullet, .hljs-link { color: #ff7b72; }
+.hljs-section, .hljs-title { font-weight: 700; }
 
 /* Tables */
 .markdown table {

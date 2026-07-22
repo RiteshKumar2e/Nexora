@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "katex/dist/katex.min.css";
-import "highlight.js/styles/github.css";
+import "highlight.js/styles/github-dark.css";
 import "./globals.css";
 import Providers from "@/components/Providers";
 
