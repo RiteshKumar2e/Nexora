@@ -22,5 +22,85 @@
     "train_examples": 20411,
     "steps_this_round": 800,
     "vocab_size": 8365
+  },
+  {
+    "round": 4,
+    "timestamp": "2026-07-22T14:38:29.580282+00:00",
+    "total_examples": 22004,
+    "train_examples": 20904,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 5,
+    "timestamp": "2026-07-22T15:47:01.302675+00:00",
+    "total_examples": 22414,
+    "train_examples": 21294,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 6,
+    "timestamp": "2026-07-22T16:57:08.811980+00:00",
+    "total_examples": 22644,
+    "train_examples": 21512,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 7,
+    "timestamp": "2026-07-22T18:02:23.789370+00:00",
+    "total_examples": 22871,
+    "train_examples": 21728,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 8,
+    "timestamp": "2026-07-22T19:32:24.454104+00:00",
+    "total_examples": 23081,
+    "train_examples": 21927,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 9,
+    "timestamp": "2026-07-22T21:46:56.552379+00:00",
+    "total_examples": 23264,
+    "train_examples": 22101,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 10,
+    "timestamp": "2026-07-23T00:34:10.173284+00:00",
+    "total_examples": 23264,
+    "train_examples": 22101,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 11,
+    "timestamp": "2026-07-23T03:24:05.436412+00:00",
+    "total_examples": 23264,
+    "train_examples": 22101,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 12,
+    "timestamp": "2026-07-23T05:53:16.964543+00:00",
+    "total_examples": 23264,
+    "train_examples": 22101,
+    "steps_this_round": 800,
+    "vocab_size": 8365
+  },
+  {
+    "round": 13,
+    "timestamp": "2026-07-23T08:03:22.058958+00:00",
+    "total_examples": 23264,
+    "train_examples": 22101,
+    "steps_this_round": 800,
+    "vocab_size": 8365
   }
 ]
